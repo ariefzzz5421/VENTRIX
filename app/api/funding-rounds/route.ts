@@ -1,0 +1,4 @@
+import {NextResponse} from "next/server";
+import {fundingRounds,byProject,documentedEquity,documentedTokenSales} from "@/lib/funding";
+import {projects} from "@/lib/data";
+export function GET(req:Request){const url=new URL(req.url);const slug=url.searchParams.get("project");const rows=slug?byProject(slug):fundingRounds;return NextResponse.json({asOf:"2026-10-21",status:"curated_primary_source_records",count:rows.length,rounds:rows,methodology:{equity:"One row per official disclosed equity round; sum across distinct rounds only.",token:"Token sales are separate from equity financing.",vc:"Round amount is the project's total, not an investor's contribution."},project:slug?projects.find(p=>p.slug===slug)??null:null,documentedEquityUsd:slug?documentedEquity(slug):null,documentedTokenSalesUsd:slug?documentedTokenSales(slug):null})}
