@@ -1,6 +1,15 @@
 import {notFound} from "next/navigation";
 import Link from "next/link";
-import {investments,funds,getProject} from "@/lib/data";
-import {Shell,Panel,SourceNote,External} from "@/components/terminal";
-export function generateStaticParams(){return investments.map(i=>({slug:i.slug}))}
-export default async function Project({params}:{params:Promise<{slug:string}>}){const {slug}=await params;const p=getProject(slug);if(!p)notFound();return <Shell title={p.project} subtitle="Project venture funding and investor associations."><SourceNote/><div className="stats"><div className="metric"><span>SECTOR</span><strong style={{fontSize:23}}>{p.sector}</strong><small>Research category</small></div><div className="metric"><span>EXAMPLE ROUND YEAR</span><strong>{p.year}</strong><small>Verify on primary source</small></div><div className="metric"><span>ASSOCIATED FUNDS</span><strong>{p.investors.length}</strong><small>Seed associations</small></div><div className="metric"><span>STATUS</span><strong style={{fontSize:21}}>{p.status}</strong><small>Non-live descriptor</small></div></div><Panel title="Associated Investors">{p.investors.map(name=>{const fund=funds.find(f=>f.name===name);return <div className="listline" key={name}><strong>{fund?<Link href={"/funds/"+fund.slug}>{name}</Link>:name}</strong><span>Participation to verify</span></div>})}<p className="mutedtext">Project reference: <External href={p.source}>Official project website</External>. Not a specific funding-round source.</p></Panel></Shell>}
+import {funds,projects,getProject} from "@/lib/data";
+import {BrandLogo} from "@/components/brand-logo";
+import {Shell,Panel,SourceNote,FundBadge,External} from "@/components/terminal";
+export function generateStaticParams(){return projects.map(p=>({slug:p.slug}))}
+export default async function ProjectPage({params}:{params:Promise<{slug:string}>}){
+const p=getProject((await params).slug);if(!p)notFound();const backers=funds.filter(f=>f.investments.includes(p.name));
+return <Shell title={p.name} subtitle={p.sector+" · Project intelligence"}>
+<div className="panel"><div className="fundhero"><BrandLogo name={p.name} website={p.website} size={64}/><div><h2>{p.name}</h2><p className="mutedtext">{p.sector}</p></div></div><External href={p.website}>Official project website</External></div>
+<div className="stats"><div className="metric"><span>SECTOR</span><strong style={{fontSize:22}}>{p.sector}</strong></div><div className="metric"><span>SOURCED VC ASSOCIATIONS</span><strong>{backers.length}</strong></div><div className="metric"><span>FUNDING AMOUNT</span><strong className="unavailable">N/D</strong><small>Not independently established</small></div><div className="metric"><span>ENTRY VALUATION</span><strong className="unavailable">N/D</strong><small>No verified private price</small></div></div>
+<SourceNote/>
+<Panel title={"Associated venture investors · "+backers.length}><div className="linked-funds">{backers.map(f=><Link className="linked-fund" href={"/funds/"+f.slug} key={f.slug}><FundBadge name={f.name} initials={f.initials} color={f.color}/><span className="pill">{f.portfolioEvidence}</span></Link>)}</div>{!backers.length&&<p className="mutedtext">Investor associations are pending source verification; we don't infer backers.</p>}</Panel>
+<Panel title="Evidence & sources">{backers.map(f=><div className="listline" key={f.slug}><strong>{f.name}</strong>{f.portfolioSource?<External href={f.portfolioSource}>View evidence</External>:<span>Pending</span>}</div>)}<p className="mutedtext">Portfolio references are not proof of ongoing ownership, entry price, individual rounds, or realized investment performance.</p></Panel>
+</Shell>}
