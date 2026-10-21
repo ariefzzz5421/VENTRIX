@@ -44,3 +44,10 @@ The bundled `lib/data.ts` is an **editorial prototype dataset**, not a verified 
 5. Add integration tests, production analytics and caching.
 
 Deploy through Vercel by importing this repository. No secrets are required to run the seeded prototype.
+
+## SEC / official AUM intelligence upgrade
+- Comparison Lab `/compare`: latest regulatory/manager AUM ranked bars + SEC annual RAUM history with full-universe multi-select.
+- Includes 13 date-stamped manager disclosures, sourced per legal adviser, and tracks 41 fund profiles. Unavailable data is explicitly undisclosed.
+- `lib/aum.ts`: source URLs, legal entities, metric scopes, disclosure dates, annual observations, notes, precision.
+- AUM is manager-wide and reported on different dates: **never a fund's investment return or venture-only portfolio valuation**.
+- The ranking is built from research snapshots; no live financial data provider is used.
