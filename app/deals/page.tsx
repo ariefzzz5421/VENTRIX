@@ -1,0 +1,4 @@
+import Link from "next/link";
+import {investments} from "@/lib/data";
+import {Shell,Panel,SourceNote} from "@/components/terminal";
+export default function Deals(){return <Shell title="Funding Rounds" subtitle="Explore notable crypto venture round references."><SourceNote/><Panel title="Historical Deal Starter Dataset"><div className="tablewrap"><table><thead><tr><th>Project</th><th>Year*</th><th>Round*</th><th>Sector</th><th>Associated funds*</th></tr></thead><tbody>{investments.map(i=><tr key={i.slug}><td><Link href={"/projects/"+i.slug}>{i.project}</Link></td><td>{i.year}</td><td>{i.round}</td><td><span className="pill">{i.sector}</span></td><td>{i.investors.join(", ")}</td></tr>)}</tbody></table></div><p className="mutedtext">*Editorial examples pending per-round primary-source confirmation. Not a complete history or reliable funding amounts.</p></Panel></Shell>}

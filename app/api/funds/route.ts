@@ -1,0 +1,1 @@
+import {NextResponse} from "next/server";import {funds} from "@/lib/data";export function GET(){return NextResponse.json({status:"seed",count:funds.length,asOf:"2026-10-21",funds})}

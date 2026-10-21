@@ -1,0 +1,1 @@
+import {NextResponse} from "next/server";import {getFund} from "@/lib/data";export async function GET(_req:Request,{params}:{params:Promise<{slug:string}>}){const f=getFund((await params).slug);return f?NextResponse.json({status:"seed",fund:f}):NextResponse.json({error:"Fund not found"},{status:404})}

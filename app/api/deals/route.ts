@@ -1,0 +1,1 @@
+import {NextResponse} from "next/server";import {investments} from "@/lib/data";export function GET(){return NextResponse.json({status:"unverified_editorial_seed",count:investments.length,deals:investments})}
