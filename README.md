@@ -51,3 +51,7 @@ Deploy through Vercel by importing this repository. No secrets are required to r
 - `lib/aum.ts`: source URLs, legal entities, metric scopes, disclosure dates, annual observations, notes, precision.
 - AUM is manager-wide and reported on different dates: **never a fund's investment return or venture-only portfolio valuation**.
 - The ranking is built from research snapshots; no live financial data provider is used.
+
+## Production release verification
+
+The latest funding-network release exposes `GET /api/release` with its source commit SHA (when provided by Vercel). Confirm that value after deployment; a green GitHub check alone does not mean production changed. See `docs/releases/funding-network-v2.md` for release checks and Vercel quota guidance.
