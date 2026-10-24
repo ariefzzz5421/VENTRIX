@@ -92,7 +92,8 @@ async function searchShowHN(term: string, sinceUnix: number): Promise<HnHit[]> {
 /** Returns source health explicitly; never substitutes made-up launch records. */
 export async function getRadarSnapshot(): Promise<RadarSnapshot> {
   const now = Date.now();
-  const sinceUnix = Math.floor((now - 7 * 86_400_000) / 1000);
+  // Bucket the query window so the URL stays stable and Next.js can reuse its 15-minute fetch cache.
+  const sinceUnix = Math.floor(now / 900_000) * 900 - 7 * 86_400;
   const results = await Promise.allSettled(SEARCH_TERMS.map(term => searchShowHN(term, sinceUnix)));
   const hits = new Map<string, HnHit>();
   let fetchedQueries = 0;
