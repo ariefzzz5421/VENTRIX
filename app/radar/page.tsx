@@ -11,6 +11,8 @@ export default async function RadarPage() {
   const snapshot = await getRadarSnapshot();
   const integrations = {
     frontrunWebhook: Boolean(process.env.FRONTRUN_WEBHOOK_SECRET),
+    customWebhook: Boolean(process.env.RADAR_INGEST_SECRET),
+    cron: Boolean(process.env.CRON_SECRET),
     discord: Boolean(process.env.DISCORD_WEBHOOK_URL),
     dedup: Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
   };

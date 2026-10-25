@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="VENTRIX">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#154b43"/><stop offset="1" stop-color="#0b2d3d"/></linearGradient><linearGradient id="ink" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#9afde0"/><stop offset="1" stop-color="#46c7bd"/></linearGradient></defs>
+<rect width="128" height="128" rx="29" fill="url(#bg)"/>
+<path d="M29 31V96H99V31" fill="none" stroke="url(#ink)" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" opacity=".42"/>
+<path d="M29 31L64 92L99 31" fill="none" stroke="#9afde0" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="21" y="23" width="16" height="16" rx="4" fill="#9afde0"/>
+<rect x="91" y="23" width="16" height="16" rx="4" fill="#9afde0"/>
+<circle cx="64" cy="92" r="9" fill="#76e6cf" stroke="#123c44" stroke-width="4"/>
+<path d="M31 64H96" stroke="#4d9c9e" stroke-width="2" stroke-dasharray="3 6" opacity=".58"/>
+</svg>

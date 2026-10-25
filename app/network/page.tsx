@@ -1,60 +1,121 @@
 "use client";
-import {useEffect,useMemo,useState} from "react";
+import {useMemo,useState} from "react";
 import Link from "next/link";
-import {Background,BackgroundVariant,Controls,Edge,Handle,MarkerType,MiniMap,Node,NodeProps,Position,ReactFlow,useEdgesState,useNodesState} from "@xyflow/react";
-import {ArrowUpRight,ExternalLink,GitBranch,Info,Maximize2,Network as NetworkIcon,Search} from "lucide-react";
-import {funds,projects} from "@/lib/data";
-import {fundingRounds,formatUsd} from "@/lib/funding";
+import {ReactFlow,Background,BackgroundVariant,Controls,MiniMap,Handle,Position,MarkerType,type Node,type Edge,type NodeProps} from "@xyflow/react";
+import {ArrowUpRight,ExternalLink,GitBranch,Info,Search,Waypoints} from "lucide-react";
+import {funds,projects,type Fund,type Project} from "@/lib/data";
+import {fundingRounds} from "@/lib/funding";
 import {BrandLogo} from "@/components/brand-logo";
 import {Shell} from "@/components/terminal";
-type EntityData=Record<string,unknown>&{kind:"fund"|"round"|"project";label:string;sub:string;website?:string;amount?:string;source?:string;projectSlug?:string;fundSlug?:string;roundId?:string};
-type FlowNode=Node<EntityData>;
-const fundLookup=new Map(funds.map(f=>[f.name,f]));
-const projectLookup=new Map(projects.map(p=>[p.slug,p]));
-function EntityCard({data,selected}:NodeProps<FlowNode>){return <div className={"flow-entity flow-"+data.kind+(selected?" flow-active":"")}><Handle type="target" position={Position.Left} className="flow-handle"/><div className="flow-entity-inner">{data.kind==="round"?<div className="flow-round-symbol"><GitBranch size={18}/></div>:<BrandLogo name={data.label} website={data.website||""} size={38}/>}<div className="flow-entity-text"><b>{data.label}</b><small>{data.sub}</small>{data.amount&&<strong>{data.amount}</strong>}</div></div><Handle type="source" position={Position.Right} className="flow-handle"/></div>}
-const nodeTypes={entity:EntityCard};
-type Mode="rounds"|"portfolio";
-function createGraph(mode:Mode,selectedFund:string,sector:string,search:string,kind:string):{nodes:FlowNode[];edges:Edge[]}{
- const edges:Edge[]=[];const nodes:FlowNode[]=[];const projectNames=(id:string)=>projectLookup.get(id)?.name||id;
- if(mode==="rounds"){
-   let rounds=fundingRounds.filter(r=>(selectedFund==="All"||r.investors.includes(selectedFund)||r.leadInvestors.includes(selectedFund))&&(kind==="All"||r.instrument===kind)&&(sector==="All"||projectLookup.get(r.projectSlug)?.sector===sector)&&(!search||[projectNames(r.projectSlug),r.stage,...r.investors].join(" ").toLowerCase().includes(search.toLowerCase()))).sort((a,b)=>b.amountUsd-a.amountUsd);
-   // Full register shown; no truncation of source-backed events.
-   const fundingNames=Array.from(new Set(rounds.flatMap(r=>r.investors.filter(n=>selectedFund==="All"||n===selectedFund))));
-   const pSlugs=Array.from(new Set(rounds.map(r=>r.projectSlug)));
-   for(let i=0;i<fundingNames.length;i++){const f=fundLookup.get(fundingNames[i]);nodes.push({id:"fund:"+fundingNames[i],type:"entity",position:{x:30,y:30+i*115},data:{kind:"fund",label:fundingNames[i],sub:f?"Tracked VC · investor":"Named external investor",website:f?.website, fundSlug:f?.slug}})}
-   for(let i=0;i<rounds.length;i++){const r=rounds[i];nodes.push({id:"round:"+r.id,type:"entity",position:{x:375,y:30+i*125},data:{kind:"round",label:r.stage,sub:r.announcedAt,amount:formatUsd(r.amountUsd),source:r.sourceUrl,projectSlug:r.projectSlug,roundId:r.id}});for(const name of r.investors.filter(n=>fundingNames.includes(n))){edges.push({id:"e:"+name+":"+r.id,source:"fund:"+name,target:"round:"+r.id,type:"smoothstep",animated:false,style:{stroke:"#65b6a3",strokeWidth:1.5,opacity:.75},markerEnd:{type:MarkerType.ArrowClosed,color:"#65b6a3",width:13,height:13}})}edges.push({id:"p:"+r.id,source:"round:"+r.id,target:"project:"+r.projectSlug,type:"smoothstep",style:{stroke:"#79aaf2",strokeWidth:2.3},markerEnd:{type:MarkerType.ArrowClosed,color:"#79aaf2",width:14,height:14}})}
-   for(let i=0;i<pSlugs.length;i++){const p=projectLookup.get(pSlugs[i]);nodes.push({id:"project:"+pSlugs[i],type:"entity",position:{x:745,y:30+i*155},data:{kind:"project",label:p?.name||pSlugs[i],sub:p?.sector||"Crypto project",website:p?.website,projectSlug:pSlugs[i]}})}
- }else{
-   const list=funds.filter(f=>selectedFund==="All"?(f.investments.length>0):f.name===selectedFund).filter(f=>!search||f.name.toLowerCase().includes(search.toLowerCase())||f.investments.some(n=>n.toLowerCase().includes(search.toLowerCase())));
-   // Avoid rendering a hairball with 100+ links; select individual fund for full portfolio discovery.
-   const clipped=selectedFund==="All"?list.slice(0,6):list;
-   const matches=(name:string)=>{const p=projects.find(p=>p.name===name);return !!p&&(sector==="All"||p.sector===sector)&&(!search||(p.name+" "+p.sector+" "+clipped.map(f=>f.name).join(" ")).toLowerCase().includes(search.toLowerCase()))};
-   const projectNames=Array.from(new Set(clipped.flatMap(f=>f.investments.filter(matches))));const step=Math.max(105,projectNames.length*100/Math.max(clipped.length,1));
-   for(let i=0;i<clipped.length;i++){const f=clipped[i];nodes.push({id:"fund:"+f.name,type:"entity",position:{x:60,y:45+i*step},data:{kind:"fund",label:f.name,sub:f.portfolioEvidence+" portfolio",fundSlug:f.slug,website:f.website,source:f.portfolioSource||undefined}})}
-   for(let i=0;i<projectNames.length;i++){const p=projects.find(p=>p.name===projectNames[i]);if(!p)continue;nodes.push({id:"project:"+p.slug,type:"entity",position:{x:540,y:45+i*105},data:{kind:"project",label:p.name,sub:p.sector,projectSlug:p.slug,website:p.website}});for(const f of clipped.filter(f=>f.investments.includes(p.name))){edges.push({id:"portfolio:"+f.slug+":"+p.slug,source:"fund:"+f.name,target:"project:"+p.slug,type:"smoothstep",style:{stroke:"#779bb4",strokeDasharray:"5 5",strokeWidth:1.6},markerEnd:{type:MarkerType.ArrowClosed,color:"#779bb4",width:13,height:13}})}}
+import "./network.css";
+
+type Evidence="official"|"portfolio";
+type View="sankey"|"graph"|"tree";
+type Relation={id:string;fund:Fund;project:Project;evidence:Evidence;source:string;rounds:number;year:string|null};
+type Detail={kind:"fund"|"project"|"relation";fund?:Fund;project?:Project;relation?:Relation};
+const fundNames=new Map(funds.map(f=>[f.name,f]));
+const projectSlugs=new Map(projects.map(p=>[p.slug,p]));
+const projectNames=new Map(projects.map(p=>[p.name,p]));
+const ICON=(url:string)=>{try{return "https://www.google.com/s2/favicons?domain="+encodeURIComponent(new URL(url).hostname)+"&sz=128"}catch{return ""}};
+const COLORS=["#6ce6c1","#76b8f2","#e3be86","#bcaaf4","#82d8d3","#d8a0b4","#8bcda2","#adc0e8"];
+const officialRelations:Relation[]=(()=>{
+  const result=new Map<string,Relation>();
+  for(const round of fundingRounds){
+    const project=projectSlugs.get(round.projectSlug);
+    if(!project)continue;
+    for(const name of round.investors){
+      const fund=fundNames.get(name);
+      if(!fund)continue; // Do not imply that similarly named firms are the same legal investor.
+      const key=fund.slug+":"+project.slug,existing=result.get(key);
+      if(existing){existing.rounds++;if(!existing.year||existing.year>round.announcedAt.slice(0,4))existing.year=round.announcedAt.slice(0,4);}
+      else result.set(key,{id:key,fund,project,evidence:"official",source:round.sourceUrl,rounds:1,year:round.announcedAt.slice(0,4)});
+    }
+  }
+  return [...result.values()];
+})();
+const portfolioRelations:Relation[]=(()=>{
+ const result=new Map(officialRelations.map(r=>[r.id,r]));
+ for(const fund of funds){
+   if(!fund.portfolioSource||fund.portfolioEvidence==="Pending")continue;
+   for(const name of fund.investments){
+     const project=projectNames.get(name);
+     if(!project)continue;
+     const id=fund.slug+":"+project.slug;
+     if(!result.has(id))result.set(id,{id,fund,project,evidence:"portfolio",source:fund.portfolioSource,rounds:0,year:null});
+   }
  }
- return {nodes,edges};
+ return [...result.values()];
+})();
+
+function InfoDrawer({detail,close}:{detail:Detail;close:()=>void}){
+ const rel=detail.relation, fund=detail.fund||rel?.fund, project=detail.project||rel?.project;
+ return <aside className="vn-drawer"><button onClick={close} className="vn-close" aria-label="Close details">×</button><span className="eyebrow">CONNECTION INTELLIGENCE</span>
+ <h3>{rel?fund?.name+" → "+project?.name:fund?.name||project?.name}</h3>
+ {fund&&<p><BrandLogo name={fund.name} website={fund.website} size={24}/> <Link href={"/funds/"+fund.slug}>Open fund profile <ArrowUpRight size={14}/></Link></p>}
+ {project&&<p><BrandLogo name={project.name} website={project.website} size={24}/> <Link href={"/projects/"+project.slug}>Open project dossier <ArrowUpRight size={14}/></Link></p>}
+ {rel&&<><p><strong>Evidence:</strong> {rel.evidence==="official"?"Named in an official funding announcement":"Indexed portfolio reference (not necessarily confirmed for a particular round)"}</p>
+ <p><strong>Known funding rounds:</strong> {rel.rounds||"Not individually documented"}</p><p><strong>Earliest indexed year:</strong> {rel.year||"Not established"}</p>
+ <a target="_blank" rel="noopener noreferrer" href={rel.source}>Inspect evidence <ExternalLink size={13}/></a></>}
+ {!rel&&<p className="mutedtext">Select a connecting flow to inspect the underlying evidence.</p>}
+ </aside>;
+}
+function SankeyView({relations,onSelect}:{relations:Relation[];onSelect:(d:Detail)=>void}){
+ const [active,setActive]=useState<string|null>(null);
+ const left=[...new Map(relations.map(r=>[r.fund.slug,r.fund])).values()].sort((a,b)=>a.name.localeCompare(b.name));
+ const right=[...new Map(relations.map(r=>[r.project.slug,r.project])).values()].sort((a,b)=>a.name.localeCompare(b.name));
+ const h=Math.max(570,Math.max(left.length,right.length)*67+90),w=1170,lx=245,rx=895,thick=8;
+ const leftCounts=new Map(left.map(f=>[f.slug,relations.filter(r=>r.fund.slug===f.slug).length]));
+ const rightCounts=new Map(right.map(p=>[p.slug,relations.filter(r=>r.project.slug===p.slug).length]));
+ const yLeft=new Map(left.map((f,i)=>[f.slug,50+(i+.5)*(h-100)/left.length]));
+ const yRight=new Map(right.map((p,i)=>[p.slug,50+(i+.5)*(h-100)/right.length]));
+ const outgoing=new Map<string,number>(),incoming=new Map<string,number>();
+ const links=relations.slice().sort((a,b)=>a.fund.slug.localeCompare(b.fund.slug)||a.project.slug.localeCompare(b.project.slug)).map((r)=>{
+ const leftIndex=outgoing.get(r.fund.slug)||0,rightIndex=incoming.get(r.project.slug)||0;
+ outgoing.set(r.fund.slug,leftIndex+1);incoming.set(r.project.slug,rightIndex+1);
+ const y1=(yLeft.get(r.fund.slug)||0)-(leftCounts.get(r.fund.slug)||1)*thick/2+leftIndex*thick;
+ const y2=(yRight.get(r.project.slug)||0)-(rightCounts.get(r.project.slug)||1)*thick/2+rightIndex*thick;
+ const c1=lx+230,c2=rx-230;
+ return {...r,path:`M ${lx} ${y1} C ${c1} ${y1},${c2} ${y2},${rx} ${y2} L ${rx} ${y2+thick} C ${c2} ${y2+thick},${c1} ${y1+thick},${lx} ${y1+thick} Z`};
+ });
+ if(!relations.length)return <div className="empty-state">No source-backed relationships match the filters. Try another fund or choose portfolio references.</div>;
+ return <div className="vn-scroll"><svg viewBox={`0 0 ${w} ${h}`} className="vn-sankey-svg" role="img" aria-label="Sankey diagram connecting venture funds at left with their portfolio projects at right">
+ <defs><linearGradient id="vnFlow" x1="0" x2="1"><stop offset="0%" stopColor="#53cfae"/><stop offset="100%" stopColor="#7fa8e8"/></linearGradient></defs>
+ <text x="22" y="24" className="vn-axis">CRYPTO VENTURE INVESTORS</text><text x="918" y="24" className="vn-axis">FUNDED PROJECTS</text>
+ {links.map((r)=><path key={r.id} d={r.path} fill={active&&active!==r.id?"#38526b":"url(#vnFlow)"} opacity={active===r.id?.9:active?.10:r.evidence==="official"?.43:.19} stroke={active===r.id?"#e4d3a4":"none"} strokeWidth={1} style={{cursor:"pointer",transition:"opacity .16s"}} onMouseEnter={()=>setActive(r.id)} onMouseLeave={()=>setActive(null)} onClick={()=>onSelect({kind:"relation",relation:r})}><title>{r.fund.name} → {r.project.name} · {r.evidence==="official"?"Official funding announcement":"Portfolio research reference"}</title></path>)}
+ {left.map((f,i)=>{const y=yLeft.get(f.slug)||0,deg=leftCounts.get(f.slug)||1;return <g key={f.slug} role="button" tabIndex={0} onClick={()=>onSelect({kind:"fund",fund:f})} onKeyDown={e=>{if(e.key==="Enter")onSelect({kind:"fund",fund:f})}} style={{cursor:"pointer"}}><rect x={lx-1} y={y-deg*thick/2} width={14} height={deg*thick} rx="3" fill={COLORS[i%COLORS.length]}/><image href={ICON(f.website)} x="18" y={y-15} width="30" height="30"/><text x="57" y={y+5} className="vn-name">{f.name.length>23?f.name.slice(0,22)+"…":f.name}</text><title>Open {f.name}</title></g>})}
+ {right.map(p=>{const y=yRight.get(p.slug)||0,deg=rightCounts.get(p.slug)||1;return <g key={p.slug} role="button" tabIndex={0} onClick={()=>onSelect({kind:"project",project:p})} onKeyDown={e=>{if(e.key==="Enter")onSelect({kind:"project",project:p})}} style={{cursor:"pointer"}}><rect x={rx-13} y={y-deg*thick/2} width={14} height={deg*thick} rx="3" fill="#8baefa"/><image href={ICON(p.website)} x="913" y={y-15} width="30" height="30"/><text x="951" y={y+5} className="vn-name">{p.name.length>24?p.name.slice(0,23)+"…":p.name}</text></g>})}
+ </svg></div>
+}
+type GraphNodeData=Record<string,unknown>&{label:string;kind:"fund"|"project";website:string};
+type GraphNode=Node<GraphNodeData>;
+function NodeCard({data}:NodeProps<GraphNode>){return <div className={"vn-graphnode "+data.kind}><Handle type="target" position={Position.Left}/><BrandLogo website={data.website} name={data.label} size={28}/><b>{data.label}</b><Handle type="source" position={Position.Right}/></div>}
+const nodeTypes={card:NodeCard};
+function GraphView({relations,onSelect}:{relations:Relation[];onSelect:(d:Detail)=>void}){
+ const left=[...new Map(relations.map(r=>[r.fund.slug,r.fund])).values()];
+ const right=[...new Map(relations.map(r=>[r.project.slug,r.project])).values()];
+ const nodes:GraphNode[]=[...left.map((f,i)=>({id:"f:"+f.slug,type:"card",data:{kind:"fund" as const,label:f.name,website:f.website},position:{x:40,y:30+i*85}})),...right.map((p,i)=>({id:"p:"+p.slug,type:"card",data:{kind:"project" as const,label:p.name,website:p.website},position:{x:470,y:30+i*85}}))];
+ const edges:Edge[]=relations.map(r=>({id:r.id,source:"f:"+r.fund.slug,target:"p:"+r.project.slug,type:"smoothstep",style:{stroke:r.evidence==="official"?"#6ce6c1":"#708ca9",strokeWidth:r.evidence==="official"?2:1,strokeDasharray:r.evidence==="portfolio"?"5 5":undefined},markerEnd:{type:MarkerType.ArrowClosed,color:"#6ce6c1"}}));
+ return relations.length?<div className="vn-reactflow"><ReactFlow key={relations.map(r=>r.id).join("|")} nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView fitViewOptions={{padding:.23,maxZoom:1}} minZoom={.2} maxZoom={1.8} onNodeClick={(_e,n)=>{const f=funds.find(f=>"f:"+f.slug===n.id),p=projects.find(p=>"p:"+p.slug===n.id);onSelect(f?{kind:"fund",fund:f}:{kind:"project",project:p})}} onEdgeClick={(_e,edge)=>{const r=relations.find(x=>x.id===edge.id);if(r)onSelect({kind:"relation",relation:r})}}><Background variant={BackgroundVariant.Dots} color="#334c61"/><Controls/><MiniMap pannable zoomable nodeColor={n=>n.data.kind==="fund"?"#6ce6c1":"#88b5ef"} /></ReactFlow></div>:<div className="empty-state">No connections found.</div>;
+}
+function TreeView({relations,onSelect}:{relations:Relation[];onSelect:(d:Detail)=>void}){
+ const [open,setOpen]=useState<string[]>([]);
+ const grouped=[...new Map(relations.map(r=>[r.fund.slug,r.fund])).values()];
+ return <div className="vn-tree">{grouped.map(f=>{const items=relations.filter(r=>r.fund.slug===f.slug),expanded=open.includes(f.slug);return <section className="vn-tree-card" key={f.slug}><button className="vn-tree-fund" onClick={()=>setOpen(s=>expanded?s.filter(v=>v!==f.slug):[...s,f.slug])}><BrandLogo name={f.name} website={f.website} size={32}/><span>{f.name}</span><small>{items.length} projects</small><strong>{expanded?"−":"+"}</strong></button>{expanded&&<div className="vn-tree-children">{items.map(r=><button onClick={()=>onSelect({kind:"relation",relation:r})} key={r.id}><BrandLogo name={r.project.name} website={r.project.website} size={26}/><span>{r.project.name}</span><small>{r.evidence==="official"?"Official round":"Portfolio source"}</small></button>)}</div>}</section>})}{!grouped.length&&<div className="empty-state">No connections found.</div>}</div>;
 }
 export default function Network(){
- const[mode,setMode]=useState<Mode>("rounds");const[fund,setFund]=useState("All");const[sector,setSector]=useState("All");const[kind,setKind]=useState("All");const[search,setSearch]=useState("");const[detail,setDetail]=useState<EntityData|null>(null);
- const sectors=["All",...Array.from(new Set(projects.map(p=>p.sector))).sort()];
- const graph=useMemo(()=>createGraph(mode,fund,sector,search,kind),[mode,fund,sector,search,kind]);
- const[nodes,setNodes,onNodesChange]=useNodesState<FlowNode>(graph.nodes);
- const[edges,setEdges,onEdgesChange]=useEdgesState<Edge>(graph.edges);
- useEffect(()=>{setNodes(graph.nodes);setEdges(graph.edges);setDetail(null)},[graph,setNodes,setEdges]);
- const detailRound=detail?.roundId?fundingRounds.find(r=>r.id===detail.roundId):null;
- const affiliated=detail?.projectSlug?funds.filter(f=>f.investments.includes(projectLookup.get(detail.projectSlug!)?.name||"")):[];
- return <Shell title="Interactive Investment Network" subtitle="Trace documented capital relationships across venture investors, funding rounds and projects.">
- <div className="network-explainer"><Info size={17}/><span><b>Two evidence levels:</b> Solid paths show investors named in individual official funding announcements; dashed paths are historical portfolio research associations, not proof of round participation. Click nodes to inspect details and original source.</span></div>
- <div className="graph-workspace">
- <div className="graph-header"><div><span className="eyebrow">VENTRIX / CAPITAL CONNECTIONS</span><h2>Funding Relationship Graph</h2><small>Drag nodes · zoom · pan · inspect connections</small></div><div className="graph-status"><span className="aum-dot"/> INTERACTIVE RESEARCH</div></div>
- <div className="graph-toolbar"><div className="aum-segments"><button className={mode==="rounds"?"on":""} onClick={()=>{setMode("rounds");setFund("All")}}>Official Funding Rounds</button><button className={mode==="portfolio"?"on":""} onClick={()=>{setMode("portfolio");setFund("All")}}>Portfolio Discovery</button></div><div className="graph-toolbarfilters"><select value={fund} onChange={e=>setFund(e.target.value)} aria-label="Fund filter"><option value="All">All investors</option>{funds.map(f=><option key={f.slug}>{f.name}</option>)}</select><select value={sector} onChange={e=>setSector(e.target.value)} aria-label="Sector filter">{sectors.map(v=><option key={v}>{v}</option>)}</select>{mode==="rounds"&&<select value={kind} onChange={e=>setKind(e.target.value)} aria-label="Funding type"><option value="All">Equity & tokens</option><option value="equity">Equity</option><option value="token-sale">Token sales</option></select>}<label className="graph-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Find entity..." aria-label="Search network"/></label></div></div>
- <div className="graph-statrow"><span>{graph.nodes.filter(n=>n.data.kind==="fund").length} investors</span><span>{graph.nodes.filter(n=>n.data.kind==="round").length} source-backed rounds</span><span>{graph.nodes.filter(n=>n.data.kind==="project").length} projects</span><span>{graph.edges.length} relationships</span></div>
- <div className="graph-stage">
- {graph.nodes.length?<ReactFlow key={mode+":"+fund+":"+sector+":"+kind+":"+search} nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={(_e,node)=>setDetail(node.data)} nodeTypes={nodeTypes} fitView fitViewOptions={{padding:.22,maxZoom:1}} minZoom={.15} maxZoom={1.7} attributionPosition="bottom-right" proOptions={{hideAttribution:false}}><Background variant={BackgroundVariant.Dots} color="#31465b" gap={20} size={1}/><Controls showInteractive={false}/><MiniMap pannable zoomable nodeColor={node=>node.data.kind==="fund"?"#63e0b3":node.data.kind==="round"?"#e7bb79":"#85aff0"} style={{background:"#101d2d",border:"1px solid #365169"}}/></ReactFlow>:<div className="empty-state">No documented connections match the filters. Select “All investors”, or switch to Portfolio Discovery.</div>}
- {detail&&<aside className="graph-drawer"><button className="graph-close" aria-label="Close details" onClick={()=>setDetail(null)}>×</button><span className="eyebrow">{detail.kind.toUpperCase()} INTELLIGENCE</span><div className="graph-drawer-title">{detail.website&&<BrandLogo name={detail.label} website={detail.website} size={42}/>}<h3>{detail.label}</h3></div><p>{detail.sub}</p>{detail.amount&&<strong className="funding-money">{detail.amount}</strong>}{detailRound&&<><p><b>Investors:</b> {detailRound.investors.join(" · ")}</p><p><b>Lead:</b> {detailRound.leadInvestors.join(" · ")||"Not specified"}</p><p><b>Instrument:</b> {detailRound.instrument==="equity"?"Equity":"Token transaction"}</p></>}{detailRound?.sourceUrl&&<a href={detailRound.sourceUrl} target="_blank" rel="noopener noreferrer">Official funding announcement <ExternalLink size={13}/></a>}{detail.source&&!detailRound&&<a href={detail.source} target="_blank" rel="noopener noreferrer">Portfolio research reference <ExternalLink size={13}/></a>}{detail.fundSlug&&<Link href={"/funds/"+detail.fundSlug}>Open VC dossier <ArrowUpRight size={13}/></Link>}{detail.projectSlug&&<Link href={"/projects/"+detail.projectSlug}>Open project funding profile <ArrowUpRight size={13}/></Link>}{detail.kind==="project"&&affiliated.length>0&&<p className="graph-drawer-foot">{affiliated.length} historical portfolio references in VENTRIX.</p>}</aside>}
- </div>
- <div className="graph-footer"><span><i className="graph-key solid"/> Official round investor → funding round → project</span><span><i className="graph-key dotted"/> Portfolio research link (different evidence level)</span><span>Click a node to view details</span></div>
- </div>
- <p className="mutedtext" style={{fontSize:12,marginTop:16}}>When viewing all funds, Portfolio Discovery initially displays six sourced managers to keep the diagram readable. Choose a fund in the dropdown to view its full catalogue; official-round mode displays every indexed primary-source round.</p>
- </Shell>}
+ const [view,setView]=useState<View>("sankey"),[evidence,setEvidence]=useState<Evidence>("official"),[selected,setSelected]=useState("All"),[sector,setSector]=useState("All"),[query,setQuery]=useState(""),[detail,setDetail]=useState<Detail|null>(null);
+ const [all,setAll]=useState(false);
+ const sectors=["All",...new Set(projects.map(p=>p.sector))].sort();
+ const filtered=useMemo(()=>{const source=evidence==="official"?officialRelations:portfolioRelations;return source.filter(r=>(selected==="All"||r.fund.slug===selected)&&(sector==="All"||r.project.sector===sector)&&(!query||(r.fund.name+" "+r.project.name).toLowerCase().includes(query.toLowerCase())));},[evidence,selected,sector,query]);
+ const list=useMemo(()=>{if(selected!=="All"||all||filtered.length<=50)return filtered;const ranked=[...filtered].sort((a,b)=>a.fund.name.localeCompare(b.fund.name)||a.project.name.localeCompare(b.project.name));return ranked.slice(0,50)},[filtered,all,selected]);
+ return <Shell title="Investment Network" subtitle="Explore sourced VC → startup connections across three interactive diagram modes.">
+ <div className="vn-evidence"><Info size={17}/><span><b>Evidence-first mapping:</b> Official rounds mean the investor was named in a project funding announcement. Portfolio discovery adds indexed associations whose exact investment round and check size may be unknown. <b>Flow width counts documented relationships, never invested dollars.</b></span></div>
+ <section className="vn-workspace"><header className="vn-header"><div className="eyebrow">VENTRIX // VENTURE RELATIONSHIP INTELLIGENCE</div><h2>Capital Relationship Explorer</h2><p>Funds on the left. Funded projects on the right. Click any connection for details.</p></header>
+ <div className="vn-toolbar"><label><Waypoints size={15}/> Diagram mode<select aria-label="Diagram mode" value={view} onChange={e=>{setView(e.target.value as View);setDetail(null)}}><option value="sankey">Sankey Diagram (Default)</option><option value="graph">Network Graph</option><option value="tree">Tree Diagram</option></select></label><label>Data source<select value={evidence} onChange={e=>{setEvidence(e.target.value as Evidence);setAll(false)}} aria-label="Connection evidence"><option value="official">Official funding rounds</option><option value="portfolio">Include portfolio references</option></select></label><label>Venture fund<select value={selected} onChange={e=>{setSelected(e.target.value);setAll(false)}} aria-label="Filter venture fund"><option value="All">All sourced funds</option>{funds.map(f=><option key={f.slug} value={f.slug}>{f.name}</option>)}</select></label><label>Sector<select value={sector} onChange={e=>setSector(e.target.value)} aria-label="Filter sector">{sectors.map(s=><option key={s}>{s}</option>)}</select></label><label className="vn-search"><Search size={15}/><input aria-label="Search connections" placeholder="Search fund / project" value={query} onChange={e=>setQuery(e.target.value)}/></label></div>
+ <div className="vn-summary"><span>{new Set(list.map(r=>r.fund.slug)).size} VC investors</span><span>{new Set(list.map(r=>r.project.slug)).size} projects</span><span>{list.length} connections</span><span>{evidence==="official"?"Primary funding announcements":"Primary + portfolio-level references"}</span></div>
+ {filtered.length>list.length&&<div className="vn-load"><span>Showing {list.length} of {filtered.length} connections for readability.</span><button onClick={()=>setAll(true)}>Show all {filtered.length}</button></div>}
+ <div className="vn-visual">{view==="sankey"?<SankeyView relations={list} onSelect={setDetail}/>:view==="graph"?<GraphView relations={list} onSelect={setDetail}/>:<TreeView relations={list} onSelect={setDetail}/>}
+ {detail&&<InfoDrawer detail={detail} close={()=>setDetail(null)}/>}</div>
+ <footer className="vn-legend"><span><i/> Source-backed VC → project relationship</span><span>Use project filters or choose one fund for a focused diagram</span></footer>
+ </section></Shell>;
+}
