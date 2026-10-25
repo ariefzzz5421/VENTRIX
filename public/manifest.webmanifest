@@ -1,0 +1,17 @@
+{
+  "name": "VENTRIX — Crypto Venture Intelligence",
+  "short_name": "VENTRIX",
+  "description": "Research venture investors, sourced funding and early startups.",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#0d1522",
+  "background_color": "#080d17",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

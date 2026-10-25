@@ -5,22 +5,24 @@ import type { RadarSector, RadarSignal, RadarSnapshot } from "@/lib/radar";
 
 type SectorFilter = "All sectors" | RadarSector;
 function stamp(value: string) {
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(new Date(value)) + " UTC";
+  return new Intl.DateTimeFormat("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(new Date(value)) + " UTC";
 }
 export function RadarBoard({ snapshot, integrations }: {
   snapshot: RadarSnapshot;
-  integrations: { frontrunWebhook: boolean; discord: boolean; dedup: boolean };
+  integrations: { frontrunWebhook: boolean; customWebhook: boolean; cron: boolean; discord: boolean; dedup: boolean };
 }) {
   const [sector, setSector] = useState<SectorFilter>("All sectors");
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<"score" | "newest">("score");
+  const [sort, setSort] = useState<"score" | "newest" | "oldest">("score");
+  const [year,setYear]=useState("All years");
+  const years=useMemo(()=>["All years",...new Set(snapshot.signals.map(s=>new Date(s.createdAt).getUTCFullYear().toString()))], [snapshot.signals]);
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
-    const matches = snapshot.signals.filter(s => (sector === "All sectors" || s.sector === sector) &&
+    const matches = snapshot.signals.filter(s => (sector === "All sectors" || s.sector === sector) && (year==="All years"||new Date(s.createdAt).getUTCFullYear().toString()===year) &&
       (!term || (s.title + " " + s.author + " " + s.sector).toLowerCase().includes(term)));
-    return matches.sort((a, b) => sort === "newest" ? b.createdAt.localeCompare(a.createdAt) : b.score - a.score || b.createdAt.localeCompare(a.createdAt));
-  }, [snapshot.signals, sector, query, sort]);
-  const ready = integrations.discord && integrations.dedup;
+    return matches.sort((a, b) => sort === "newest" ? b.createdAt.localeCompare(a.createdAt) : sort === "oldest" ? a.createdAt.localeCompare(b.createdAt) : b.score - a.score || b.createdAt.localeCompare(a.createdAt));
+  }, [snapshot.signals, sector, query, year, sort]);
+  const ready = integrations.discord && integrations.dedup && integrations.cron;
   return <div className="radar-root">
     <div className="radar-hero">
       <div className="radar-hero-copy"><div className="radar-kicker"><Radar size={14}/> DISCOVERY ENGINE / PUBLIC DATA</div>
@@ -42,12 +44,12 @@ export function RadarBoard({ snapshot, integrations }: {
         <div className="radar-tools">
           <label className="radar-search"><Search size={16}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search launch or founder username..." aria-label="Search radar signals"/></label>
           <label className="radar-select"><Filter size={14}/><select aria-label="Sector filter" value={sector} onChange={e => setSector(e.target.value as SectorFilter)}><option>All sectors</option><option>AI / ML</option><option>Crypto / Web3</option></select></label>
-          <select className="radar-order" aria-label="Sort results" value={sort} onChange={e => setSort(e.target.value as "score" | "newest")}><option value="score">Top momentum</option><option value="newest">Most recent</option></select>
+          <select className="radar-order" aria-label="Filter year" value={year} onChange={e=>setYear(e.target.value)}>{years.map(y=><option key={y}>{y}</option>)}</select><select className="radar-order" aria-label="Sort results" value={sort} onChange={e => setSort(e.target.value as "score" | "newest" | "oldest")}><option value="score">Top momentum</option><option value="newest">Latest</option><option value="oldest">Oldest</option></select>
         </div>
         {!snapshot.sourceOk && <div className="radar-banner error"><CircleAlert size={17}/> The public source is unavailable. No synthetic results are shown.</div>}
         {!filtered.length && <div className="radar-empty">No matching public launches in this view.</div>}
         <div className="radar-feed">{filtered.map((signal: RadarSignal) => <article className="radar-item" key={signal.id}>
-          <div className="radar-item-top"><span className={signal.sector === "AI / ML" ? "radar-sector ai" : "radar-sector crypto"}>{signal.sector}</span><span className="radar-item-time">{stamp(signal.createdAt)}</span></div>
+          <div className="radar-item-top"><span className={signal.sector === "AI / ML" ? "radar-sector ai" : "radar-sector crypto"}>{signal.sector}</span><span className="radar-item-time">{stamp(signal.createdAt)} <b className="radar-year">{new Date(signal.createdAt).getUTCFullYear()}</b></span></div>
           <a href={signal.sourceUrl} target="_blank" rel="noopener noreferrer" className="radar-story">{signal.title}<ArrowUpRight size={15}/></a>
           <div className="radar-reason">Posted by {signal.author} · {signal.points} points · {signal.comments} comments</div>
           <div className="radar-item-bottom">
@@ -60,9 +62,9 @@ export function RadarBoard({ snapshot, integrations }: {
         <section className="radar-sidepanel"><span className="radar-label">OPERATIONS</span><h3><BellRing size={17}/> Discord notifications</h3>
           <div className="radar-status"><span>Discord webhook secret</span>{integrations.discord ? <CheckCircle2 size={16} color="#6ce6c1"/> : <XCircle size={16}/>}</div>
           <div className="radar-status"><span>Persistent deduplication</span>{integrations.dedup ? <CheckCircle2 size={16} color="#6ce6c1"/> : <XCircle size={16}/>}</div>
-          <div className="radar-status"><span>Frontrun receiver secret</span>{integrations.frontrunWebhook ? <CheckCircle2 size={16} color="#6ce6c1"/> : <XCircle size={16}/>}</div>
-          <div className={"radar-banner " + (ready ? "success" : "")}>{ready ? "Daily public-launch delivery can run after CRON_SECRET is set." : "Alerts are not live. Configure Discord + Upstash + CRON_SECRET in Vercel."}</div>
-          <p>Scheduled scan: daily, 08:00 WIB. First run can include recent matching launches; subsequent runs suppress previously sent posts.</p>
+          <div className="radar-status"><span>Vercel cron auth</span>{integrations.cron ? <CheckCircle2 size={16} color="#6ce6c1"/> : <XCircle size={16}/>}</div><div className="radar-status"><span>Custom signed webhook receiver</span>{integrations.customWebhook ? <CheckCircle2 size={16} color="#6ce6c1"/> : <XCircle size={16}/>}</div><div className="radar-status"><span>Frontrun receiver secret</span>{integrations.frontrunWebhook ? <CheckCircle2 size={16} color="#6ce6c1"/> : <XCircle size={16}/>}</div>
+          <div className={"radar-banner " + (ready ? "success" : "")}>{ready ? "Scheduled HN → Discord delivery is configured. Incoming custom sources are configured independently." : "To activate scheduled alerts, configure Discord, Upstash, and CRON_SECRET in Vercel."}</div>
+          <p>Scheduled scan: daily, 08:00 WIB. First run can include recent launches; subsequent runs deduplicate events. Status checks confirm configuration, not successful delivery.</p><div className="radar-webhook-doc"><strong>Incoming webhooks</strong><code>POST /api/hooks/radar</code><small>HMAC-SHA256 signed · X-Ventrix-Signature · X-Ventrix-Delivery-Id</small><a href="https://github.com/ariefzzz5421/VENTRIX/blob/main/docs/radar-webhooks.md" target="_blank" rel="noopener noreferrer">Setup guide ↗</a></div>
         </section>
         <section className="radar-sidepanel"><span className="radar-label">INTELLIGENCE LAYERS</span><h3><Sparkles size={17}/> Signal provenance</h3>
           <div className="radar-layer"><span className="radar-layer-dot active"/><div><strong>Public launch discovery</strong><small>Show HN via Algolia · 15-minute cached fetch</small></div></div>
