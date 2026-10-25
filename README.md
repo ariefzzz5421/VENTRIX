@@ -55,3 +55,13 @@ Deploy through Vercel by importing this repository. No secrets are required to r
 ## Production release verification
 
 The latest funding-network release exposes `GET /api/release` with its source commit SHA (when provided by Vercel). Confirm that value after deployment; a green GitHub check alone does not mean production changed. See `docs/releases/funding-network-v2.md` for release checks and Vercel quota guidance.
+
+## Early Startup Radar (public launches + optional VC intelligence)
+
+- `/radar`: dynamic, source-attributed Show HN discovery of AI and crypto launches (free public HN Algolia API).
+- `GET /api/radar`: source status, heuristic community momentum, timestamps and discussion links.
+- `GET /api/cron/radar`: daily authenticated Vercel Cron job, sends a deduplicated Discord digest after configuration.
+- `POST /api/hooks/frontrun`: optional signed Frontrun Pro push events (`new_follows` and `convergence`) forwarded to Discord.
+- **No paid Frontrun key is required for free public-launch discovery.** A Show HN post is not a VC follow or a funding record.
+
+See [`docs/EARLY_STARTUP_RADAR.md`](docs/EARLY_STARTUP_RADAR.md) for secrets, webhook setup, Redis, schedule and limitations. Secrets must live only in Vercel environment variables.
