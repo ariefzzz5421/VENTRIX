@@ -12,7 +12,7 @@
 
 1. Merge this PR, then redeploy to production. Visit `https://ventrix-kappa.vercel.app/radar` and `/api/radar`. Source health must be `ONLINE`; empty results are acceptable and are not filled with fake records.
 2. In Discord, go to the dedicated alert channel > **Edit Channel > Integrations > Webhooks > New Webhook > Copy Webhook URL**. Store the URL **only** in Vercel environment variable `DISCORD_WEBHOOK_URL`. If an old URL was shared in a public place, rotate/delete it before use.
-3. Create an Upstash Redis database (REST API access) and set `UPSTASH_REDIS_REST_URL` plus `UPSTASH_REDIS_REST_TOKEN` in Vercel. This Redis store is required: a stateless Vercel deployment cannot safely remember which alerts were sent. When unavailable, the worker fails closed rather than spamming the channel.
+3. Create an Upstash Redis database (REST API access). The Vercel Marketplace integration supplies `KV_REST_API_URL` and `KV_REST_API_TOKEN` automatically; direct Upstash setup can instead use `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`. This Redis store is required: a stateless Vercel deployment cannot safely remember which alerts were sent. When unavailable, the worker fails closed rather than spamming the channel.
 4. Generate a high-entropy `CRON_SECRET` and add it to Vercel; Vercel Cron authenticates its request with that secret. The included `vercel.json` schedules the job **once daily** at 01:00 UTC / 08:00 WIB. Verify Vercel plan's cron allowance and view execution logs after production deployment.
 5. Redeploy after setting variables. To test manually without exposing the secret in the URL, use an authenticated server-side call, e.g.:
 

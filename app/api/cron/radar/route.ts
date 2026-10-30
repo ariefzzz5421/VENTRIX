@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getRadarSnapshot } from "@/lib/radar";
-import { confirmDelivery, publicLaunchEmbed, releaseDelivery, reserveDelivery, sendDiscord } from "@/lib/radar-delivery";
+import { confirmDelivery, hasRedisConfig, publicLaunchEmbed, releaseDelivery, reserveDelivery, sendDiscord } from "@/lib/radar-delivery";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -14,7 +14,7 @@ function authorized(req: Request) {
 }
 export async function GET(req: Request) {
   if (!authorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!process.env.DISCORD_WEBHOOK_URL || !process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN)
+  if (!process.env.DISCORD_WEBHOOK_URL || !hasRedisConfig())
     return NextResponse.json({ error: "Discord or persistent deduplication store is not configured" }, { status: 503 });
   const snapshot = await getRadarSnapshot();
   if (!snapshot.sourceOk) return NextResponse.json({ error: "Public source unavailable — no fabricated fallback" }, { status: 503 });

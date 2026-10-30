@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { confirmDelivery, frontrunEmbed, releaseDelivery, reserveDelivery, sendDiscord } from "@/lib/radar-delivery";
+import { confirmDelivery, frontrunEmbed, hasRedisConfig, releaseDelivery, reserveDelivery, sendDiscord } from "@/lib/radar-delivery";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,7 +25,7 @@ function trackedSector(classification?: Classification) {
 }
 export async function POST(req: Request) {
   const secret = process.env.FRONTRUN_WEBHOOK_SECRET;
-  if (!secret || !process.env.DISCORD_WEBHOOK_URL || !process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN)
+  if (!secret || !process.env.DISCORD_WEBHOOK_URL || !hasRedisConfig())
     return NextResponse.json({ error: "Webhook receiver is not configured" }, { status: 503 });
   const raw = await req.text();
   if (raw.length > 64_000) return NextResponse.json({ error: "Payload too large" }, { status: 413 });

@@ -5,10 +5,17 @@ const PREFIX = "ventrix:radar:v1:";
 const SENT_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 function redisConfig() {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const direct = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
+  const url = direct ? process.env.UPSTASH_REDIS_REST_URL : process.env.KV_REST_API_URL;
+  const token = direct ? process.env.UPSTASH_REDIS_REST_TOKEN : process.env.KV_REST_API_TOKEN;
   if (!url || !token || !/^https:\/\//.test(url)) throw new Error("Persistent Upstash Redis is not configured");
   return { url: url.replace(/\/$/, ""), token };
+}
+export function hasRedisConfig() {
+  return Boolean(
+    (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) ||
+    (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN)
+  );
 }
 async function redisCommand<T>(args: (string | number)[]): Promise<T> {
   const { url, token } = redisConfig();

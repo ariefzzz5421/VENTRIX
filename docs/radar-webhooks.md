@@ -7,8 +7,7 @@ VENTRIX supports **two separate channels**:
 
 ### Required Vercel environment variables (server-side secrets, never NEXT_PUBLIC)
 - `DISCORD_WEBHOOK_URL` — destination Discord channel webhook
-- `UPSTASH_REDIS_REST_URL`
-- `UPSTASH_REDIS_REST_TOKEN`
+- Upstash REST pair: `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`, or `KV_REST_API_URL` and `KV_REST_API_TOKEN` injected by the Vercel Marketplace integration.
 - `CRON_SECRET` — Vercel Cron bearer verification for GET /api/cron/radar
 - `RADAR_INGEST_SECRET` — dedicated random HMAC secret for custom incoming POST /api/hooks/radar
 - `FRONTRUN_WEBHOOK_SECRET` — only for /api/hooks/frontrun
