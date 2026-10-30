@@ -1,6 +1,6 @@
 import {createHmac,timingSafeEqual} from "node:crypto";
 import {NextResponse} from "next/server";
-import {reserveDelivery,confirmDelivery,releaseDelivery,sendDiscord,type DiscordEmbed} from "@/lib/radar-delivery";
+import {reserveDelivery,confirmDelivery,releaseDelivery,sendDiscord,hasRedisConfig,type DiscordEmbed} from "@/lib/radar-delivery";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 type Input={title?:unknown;url?:unknown;description?:unknown;sector?:unknown;createdAt?:unknown;source?:unknown};
@@ -14,7 +14,7 @@ function clean(s:unknown,max=160){return typeof s==="string"?s.replace(/@/g,"@\u
 function link(s:unknown){if(typeof s!=="string")return undefined;try{const url=new URL(s);return ["http:","https:"].includes(url.protocol)?url.href:undefined}catch{return undefined}}
 export async function POST(request:Request){
  const secret=process.env.RADAR_INGEST_SECRET;
- if(!secret||!process.env.DISCORD_WEBHOOK_URL||!process.env.UPSTASH_REDIS_REST_URL||!process.env.UPSTASH_REDIS_REST_TOKEN)return NextResponse.json({error:"Radar incoming webhook is not configured"},{status:503});
+ if(!secret||!process.env.DISCORD_WEBHOOK_URL||!hasRedisConfig())return NextResponse.json({error:"Radar incoming webhook is not configured"},{status:503});
  const text=await request.text();
  if(text.length>16000)return NextResponse.json({error:"Payload too large"},{status:413});
  if(!verify(text,request.headers.get("x-ventrix-signature"),secret))return NextResponse.json({error:"Invalid HMAC signature"},{status:401});
