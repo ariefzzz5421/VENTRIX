@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:radar": "node --experimental-strip-types --test tests/radar-alert.test.mjs"
   },
   "dependencies": {
     "next": "^15.5.0",

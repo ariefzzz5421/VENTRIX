@@ -69,19 +69,22 @@ export async function sendDiscord(embeds: DiscordEmbed[], content = "VENTRIX · 
   if (!response.ok) throw new Error("Discord delivery failed: HTTP " + response.status);
 }
 export function publicLaunchEmbed(signal: RadarSignal): DiscordEmbed {
+  const icons = { GitHub: "🐙", X: "𝕏", LinkedIn: "💼", YouTube: "▶️" } as const;
+  const links = signal.socialLinks.map(link => `${icons[link.label]} [${link.label}](${link.url})`);
+  if (signal.websiteUrl && !signal.socialLinks.some(link => link.url === signal.websiteUrl))
+    links.unshift(`🌐 [Website](${signal.websiteUrl})`);
+  links.push(`💬 [Show HN](${signal.sourceUrl})`);
   return {
     title: safe(signal.title, 240),
-    description: "Public product-launch signal — **not** a verified investment, funding round, or VC-follow event.",
+    description: signal.summary ? safe(signal.summary, 260) : undefined,
     url: signal.sourceUrl,
     color: signal.sector === "AI / ML" ? 0x69cced : 0x6ce6c1,
     fields: [
-      { name: "Sector", value: signal.sector, inline: true },
-      { name: "Community score", value: String(signal.score) + "/100 (heuristic)", inline: true },
-      { name: "HN discussion", value: signal.points + " points · " + signal.comments + " comments", inline: true },
-      { name: "Website", value: signal.websiteUrl ? "[Visit launch](" + signal.websiteUrl + ")" : "Not provided", inline: false }
+      { name: "Type", value: safe(signal.projectType, 80), inline: true },
+      ...(signal.builder ? [{ name: "Builder (HN)", value: safe(signal.builder, 80), inline: true }] : []),
+      { name: "Links", value: links.join(" · "), inline: false }
     ],
-    timestamp: signal.createdAt,
-    footer: { text: "Source: Show HN via HN Algolia · Not a VC investment recommendation" }
+    timestamp: signal.createdAt
   };
 }
 export function frontrunEmbed(input: {
