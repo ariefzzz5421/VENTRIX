@@ -8,6 +8,10 @@ export type RadarSignal = {
   sourceUrl: string;
   websiteUrl: string | null;
   author: string;
+  builder: string | null;
+  summary: string | null;
+  projectType: string;
+  socialLinks: { label: "GitHub" | "X" | "LinkedIn" | "YouTube"; url: string }[];
   createdAt: string;
   points: number;
   comments: number;
@@ -46,9 +50,48 @@ function externalUrl(value?: string | null): string | null {
     return parsed.protocol === "https:" || parsed.protocol === "http:" ? parsed.href : null;
   } catch { return null; }
 }
-function toSignal(hit: HnHit, now: number): RadarSignal | null {
+function plainText(value: string): string {
+  return value.replace(/<[^>]*>/g, " ")
+    .replace(/&(?:amp|quot|apos|lt|gt|nbsp|#39);/gi, entity => ({
+      "&amp;": "&", "&quot;": '"', "&apos;": "'", "&lt;": "<", "&gt;": ">", "&nbsp;": " ", "&#39;": "'"
+    })[entity.toLowerCase() as "&amp;"] || " ")
+    .replace(/\s+/g, " ").trim();
+}
+function summaryFrom(hit: HnHit): string | null {
+  const body = plainText(hit.story_text || "").replace(/https?:\/\/\S+/g, "").trim();
+  const tagline = (hit.title || "").replace(/^Show HN:\s*/i, "").split(/\s+[—–-]\s+/).slice(1).join(" — ");
+  const firstSentence = body.match(/^.{30,240}?[.!?](?:\s|$)/)?.[0]?.trim() || body;
+  const descriptive = /\b(?:builds?|helps?|lets?|enables?|edits?|generates?|tracks?|analyzes?|tool|app|platform|editor|workflow|website|webapp|api|video|wallet)\b/i.test(firstSentence);
+  const candidate = descriptive && firstSentence.length >= 30 ? firstSentence : tagline || firstSentence;
+  if (!candidate) return null;
+  return candidate.length > 220 ? candidate.slice(0, 217).replace(/\s+\S*$/, "") + "…" : candidate;
+}
+function projectType(text: string, sector: RadarSector): string {
+  if (/\b(pictionary|game|gaming|puzzle)\b/i.test(text)) return "Game";
+  if (/\b(video edit|video editor|video editing)\b/i.test(text)) return "Video editor";
+  if (/\b(wallet|payments?)\b/i.test(text)) return "Wallet / payments";
+  if (/\b(defi|dex|lending|yield)\b/i.test(text)) return "DeFi";
+  if (/\b(agent|agents|agentic)\b/i.test(text)) return "AI agent";
+  if (/\b(code|coding|developer|webapp|serverless|api|cli)\b/i.test(text)) return "Developer tool";
+  return sector;
+}
+function socialLinks(value: string, websiteUrl: string | null): RadarSignal["socialLinks"] {
+  const urls = [...value.matchAll(/https?:\/\/[^\s<>"']+/gi)]
+    .filter(match => /\b(?:github|repo|source|code|demo|updates|follow|social|twitter|linkedin|youtube)\b/i.test(value.slice(Math.max(0, (match.index || 0) - 80), match.index)))
+    .map(match => externalUrl(match[0].replace(/[),.;]+$/, ""))).filter((url): url is string => !!url);
+  if (websiteUrl) urls.unshift(websiteUrl);
+  const links: RadarSignal["socialLinks"] = [];
+  for (const url of urls) {
+    const host = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+    const label = host === "github.com" ? "GitHub" : host === "x.com" || host === "twitter.com" ? "X" : host === "linkedin.com" ? "LinkedIn" : host === "youtube.com" || host === "youtu.be" ? "YouTube" : null;
+    if (label && !links.some(link => link.label === label)) links.push({ label, url });
+  }
+  return links.slice(0, 4);
+}
+export function toSignal(hit: HnHit, now: number): RadarSignal | null {
   if (!hit.objectID || !hit.title || !hit.created_at) return null;
-  const text = (hit.title + " " + (hit.story_text || "").replace(/<[^>]*>/g, " ")).slice(0, 3000);
+  const body = plainText(hit.story_text || "");
+  const text = (hit.title + " " + body).slice(0, 3000);
   const isCrypto = CRYPTO.test(text);
   const isAI = AI.test(text);
   if (!isCrypto && !isAI) return null;
@@ -63,14 +106,20 @@ function toSignal(hit: HnHit, now: number): RadarSignal | null {
     points + " community points · " + comments + " comments",
     ageHours < 48 ? "Posted in the last 48 hours" : "Posted within the observation window"
   ];
+  const websiteUrl = externalUrl(hit.url);
   return {
     id: hit.objectID,
     title: hit.title.replace(/^Show HN:\s*/i, "").slice(0, 220),
     sector,
     source: "Hacker News · Show HN",
     sourceUrl: "https://news.ycombinator.com/item?id=" + encodeURIComponent(hit.objectID),
-    websiteUrl: externalUrl(hit.url),
+    websiteUrl,
     author: (hit.author || "unknown").slice(0, 80),
+    // The HN author is a builder only when the post explicitly says they built or launched it.
+    builder: /\b(?:I|we)\s+(?:built|made|created|launched|developed)\b|\b(?:I'm|I am)\s+(?:the\s+)?(?:founder|co-founder|creator)\b/i.test(body) && hit.author ? hit.author.slice(0, 80) : null,
+    summary: summaryFrom(hit),
+    projectType: projectType(hit.title, sector),
+    socialLinks: socialLinks(hit.story_text || "", websiteUrl),
     createdAt: hit.created_at,
     points, comments, score, reasons
   };

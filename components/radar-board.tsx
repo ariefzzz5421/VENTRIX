@@ -42,7 +42,7 @@ export function RadarBoard({ snapshot, integrations }: {
       <section className="radar-main-panel">
         <div className="radar-panel-title"><div><span className="radar-label">SIGNAL TERMINAL</span><h3>Latest discovery feed</h3></div><span className="radar-updated"><Clock3 size={13}/> {stamp(snapshot.asOf)}</span></div>
         <div className="radar-tools">
-          <label className="radar-search"><Search size={16}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search launch or founder username..." aria-label="Search radar signals"/></label>
+          <label className="radar-search"><Search size={16}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search launch or submitter..." aria-label="Search radar signals"/></label>
           <label className="radar-select"><Filter size={14}/><select aria-label="Sector filter" value={sector} onChange={e => setSector(e.target.value as SectorFilter)}><option>All sectors</option><option>AI / ML</option><option>Crypto / Web3</option></select></label>
           <select className="radar-order" aria-label="Filter year" value={year} onChange={e=>setYear(e.target.value)}>{years.map(y=><option key={y}>{y}</option>)}</select><select className="radar-order" aria-label="Sort results" value={sort} onChange={e => setSort(e.target.value as "score" | "newest" | "oldest")}><option value="score">Top momentum</option><option value="newest">Latest</option><option value="oldest">Oldest</option></select>
         </div>
@@ -51,10 +51,11 @@ export function RadarBoard({ snapshot, integrations }: {
         <div className="radar-feed">{filtered.map((signal: RadarSignal) => <article className="radar-item" key={signal.id}>
           <div className="radar-item-top"><span className={signal.sector === "AI / ML" ? "radar-sector ai" : "radar-sector crypto"}>{signal.sector}</span><span className="radar-item-time">{stamp(signal.createdAt)} <b className="radar-year">{new Date(signal.createdAt).getUTCFullYear()}</b></span></div>
           <a href={signal.sourceUrl} target="_blank" rel="noopener noreferrer" className="radar-story">{signal.title}<ArrowUpRight size={15}/></a>
-          <div className="radar-reason">Posted by {signal.author} · {signal.points} points · {signal.comments} comments</div>
+          {signal.summary && <p className="radar-reason">{signal.summary}</p>}
+          <div className="radar-reason">{signal.projectType} · {signal.builder ? `Builder (HN): ${signal.builder}` : `Submitted by ${signal.author}`} · {signal.points} points · {signal.comments} comments</div>
           <div className="radar-item-bottom">
             <div className="radar-score"><TrendingUp size={14}/><span>Community momentum</span><div className="radar-track"><i style={{width: signal.score + "%"}}/></div><strong>{signal.score}/100</strong></div>
-            {signal.websiteUrl ? <a target="_blank" rel="noopener noreferrer" href={signal.websiteUrl} className="radar-visit">Website <ExternalLink size={13}/></a> : <span className="radar-visit disabled">No website</span>}
+            {signal.websiteUrl ? <a target="_blank" rel="noopener noreferrer" href={signal.websiteUrl} className="radar-visit">{signal.socialLinks.some(link=>link.label==="GitHub"&&link.url===signal.websiteUrl)?"GitHub":"Website"} <ExternalLink size={13}/></a> : <span className="radar-visit disabled">No website</span>}
           </div>
         </article>)}</div>
       </section>

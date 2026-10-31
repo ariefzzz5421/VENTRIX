@@ -27,7 +27,7 @@ export async function GET(req: Request) {
       if (key) { selected.push(signal); reserved.push(key); }
     }
     if (!selected.length) return NextResponse.json({ ok: true, sent: 0, reason: "No new qualified signals" });
-    await sendDiscord(selected.map(publicLaunchEmbed), "VENTRIX · " + selected.length + " new public startup-launch signals");
+    await sendDiscord(selected.map(publicLaunchEmbed), "VENTRIX Radar · " + selected.length + " new launches");
     await Promise.all(reserved.map(confirmDelivery));
     return NextResponse.json({ ok: true, sent: selected.length, source: "Show HN", asOf: snapshot.asOf });
   } catch (error) {
